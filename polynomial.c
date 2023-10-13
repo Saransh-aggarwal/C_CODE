@@ -1,94 +1,125 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct Node {
+
+typedef struct Polynomial Polynomial;
+struct Polynomial {
     int coef;
     int exp;
-    struct Node* next;
+    struct Polynomial *next;
 };
 
-typedef struct Node Node;
-
-void insert(Node** poly, int coef, int exp) {
-    Node* temp = (Node*)malloc(sizeof(Node));
-    temp->coef = coef;
-    temp->exp = exp;
-    temp->next = NULL;
-
-    if (*poly == NULL) {
-        *poly = temp;
-        return;
-    }
-
-    Node* current = *poly;
-    while (current->next != NULL) {
-        current = current->next;
-    }
-
-    current->next = temp;
+Polynomial* get_new_polynomial() {
+    Polynomial *new_poly = (Polynomial*)malloc(sizeof(Polynomial));
+    new_poly->coef = 0;
+    new_poly->exp = 0;
+    new_poly->next = NULL;
+    return new_poly;
 }
 
-void print(Node* poly) {
-    while (poly != NULL) {
-        printf("%dx^%d", poly->coef, poly->exp);
+static inline void set_polynomial(Polynomial *poly, int coef, int exp) {
+    poly->coef = coef;
+    poly->exp = exp;
+}
+
+Polynomial* init_polynomial(int coef, int exp) {
+    Polynomial *new_poly = get_new_polynomial();
+    set_polynomial(new_poly, coef, exp);
+    return new_poly;
+}
+
+int insert_polynomial(Polynomial *poly, int coef, int exp) {
+    Polynomial *new_poly = get_new_polynomial();
+    if (new_poly == NULL)
+        return -1;
+    set_polynomial(new_poly, coef, exp);
+    while (poly->next != NULL)
         poly = poly->next;
-        if (poly != NULL) {
-            printf(" + ");
-        }
-    }
-    printf("\n");
+    poly->next = new_poly;
+    return 0;
 }
 
-Node* add(Node* poly1, Node* poly2) {
-    Node* result = NULL;
-
+Polynomial* get_polynomial_sum(Polynomial *poly1, Polynomial *poly2) {
+    Polynomial *sum = get_new_polynomial();
+    /* working under the assumption that the terms
+     * of the polynomial have been sorted in descending order */
     while (poly1 != NULL && poly2 != NULL) {
         if (poly1->exp == poly2->exp) {
-            insert(&result, poly1->coef + poly2->coef, poly1->exp);
+            int coef = poly1->coef + poly2->coef;
+            int exp = poly1->exp;
+            insert_polynomial(sum, coef, exp);
             poly1 = poly1->next;
             poly2 = poly2->next;
         } else if (poly1->exp > poly2->exp) {
-            insert(&result, poly1->coef, poly1->exp);
+            insert_polynomial(sum, poly1->coef, poly1->exp);
             poly1 = poly1->next;
-        } else {
-            insert(&result, poly2->coef, poly2->exp);
+        } else if (poly1->exp < poly2->exp) {
+            insert_polynomial(sum, poly2->coef, poly2->exp);
             poly2 = poly2->next;
         }
     }
-
+    /* insert any remaning terms from each polynomial */
     while (poly1 != NULL) {
-        insert(&result, poly1->coef, poly1->exp);
+        insert_polynomial(sum, poly1->coef, poly1->exp);
         poly1 = poly1->next;
     }
-
     while (poly2 != NULL) {
-        insert(&result, poly2->coef, poly2->exp);
+        insert_polynomial(sum, poly2->coef, poly2->exp);
         poly2 = poly2->next;
     }
-
-    return result;
+    return sum;
 }
 
+void print_polynomial(Polynomial *poly) {
+    Polynomial *head = poly;
+    for (; poly != NULL; poly = poly->next) {
+        int coef = poly->coef, exp = poly->exp;
+        /* print the term, only if the coefficient is not 0
+         * aditionally, if the coefficient is unity, print only the power of x */
+        if (coef) {
+            if (coef != 1)
+                printf("%d", coef);
+            if (coef == 1 && exp == 0)
+                putchar('1');
+            /* print the exponent */
+            if (exp != 0 && exp != 1) {
+                printf("x^%d", exp);
+            } else if (exp == 1) {
+                putchar('x');
+            }
+        } else if (!coef && poly->next == NULL && poly ==  head) {
+            /* print 0 if this is a zero polynomial */
+            putchar('0');
+        }
+        /* a '+' has to be added if there exists another term,
+         * the coefficient of the next term is not zero and if this term is not a zero at the beginning */
+        if (poly->next != NULL && poly->next->coef) {
+            if (!(!coef && poly == head))
+                printf(" + ");
+        }
+    }
+    putchar('\n');
+}
+
+
 int main() {
-    Node* poly1 = NULL;
-    insert(&poly1, 5, 4);
-    insert(&poly1, 3, 2);
-    insert(&poly1, 1, 0);
+    Polynomial *p1 = init_polynomial(5, 4);
+    insert_polynomial(p1, 3, 2);
+    insert_polynomial(p1, 1, 0);
+    printf("First Polynomial is:\t");
+    print_polynomial(p1);
 
-    Node* poly2 = NULL;
-    insert(&poly2, 4, 4);
-    insert(&poly2, 2, 2);
-    insert(&poly2, 1, 1);
+    Polynomial *p2 = init_polynomial(3, 5);
+    insert_polynomial(p2, 4, 4);
+    insert_polynomial(p2, 2, 2);
+    insert_polynomial(p2, 0, 1);
+    insert_polynomial(p2, 3, 0);
+    printf("Second Polynomial is:\t");
+    print_polynomial(p2);
 
-    printf("First polynomial: ");
-    print(poly1);
-
-    printf("Second polynomial: ");
-    print(poly2);
-
-    Node* result = add(poly1, poly2);
-    printf("Result: ");
-    print(result);
+    Polynomial *sum = get_polynomial_sum(p1, p2);
+    printf("Sum:\t\t\t");
+    print_polynomial(sum);
 
     return 0;
 }
